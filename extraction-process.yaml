@@ -1,0 +1,91 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: extraction-process
+  labels:
+    app: extraction-process
+  annotations:
+    fluxcd.io/tag.extraction-process: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: extraction-process
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: extraction-process
+    spec:
+      containers:
+        - name: extraction-process
+          image: onedpo/extraction-process:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: REDSHIFT_JAR_PATH
+            value: "/usr/src/app/application/jars/RedshiftQueryParser.jar"
+          - name: CONNECTION_POOL_SIZE
+            value: "5"
+          - name: CONNECTION_OVERFLOW_SIZE
+            value: "10"
+          - name: MAX_LOGS_HISTORY_DAYS
+            value: "6"
+          - name: LOG_EXTRACTION_INTERVAL_HOURS
+            value: "2"
+          - name: NUM_LOG_THREADS
+            value: "5"
+          - name: NUM_ACCESS_THREADS
+            value: "5"
+          - name: NUM_METADATA_THREADS
+            value: "5"
+          - name: MAX_LIST_SIZE_ACCESS
+            value: "100"
+          - name: NUM_METADATA_THREADS
+            value: "100"
+          - name: MAX_LIST_SIZE_LOGS
+            value: "100"
+          ports:
+            - containerPort: 7002
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+            limits:
+              memory: "4Gi"
+              cpu: "4"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: extraction-process-service
+  labels:
+    app: extraction-process
+spec:
+  selector:
+    app: extraction-process
+  ports:
+    - protocol: TCP
+      name: http
+      port: 7002
+      targetPort: 7002
+

@@ -1,0 +1,79 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: extraction-controller
+  labels:
+    app: extraction-controller
+  annotations:
+    fluxcd.io/tag.extraction-controller: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: extraction-controller
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: extraction-controller
+    spec:
+      containers:
+        - name: extraction-controller
+          image: onedpo/extraction-controller:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: CONNECTION_POOL_SIZE
+            value: "1"
+          - name: CONNECTION_OVERFLOW_SIZE
+            value: "2"
+          - name: METADATA_EXTRACTION_URL
+            value: "http://extraction-process-service:7002/metadata_extraction"
+          - name: ACCESS_EXTRACTION_URL
+            value: "http://extraction-process-service:7002/access_extraction"
+          - name: LOGS_EXTRACTION_URL
+            value: "http://extraction-process-service:7002/logs_extraction"
+          ports:
+            - containerPort: 7001
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "0.5"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: extraction-controller-service
+  labels:
+    app: extraction-controller
+spec:
+  selector:
+    app: extraction-controller
+  ports:
+    - protocol: TCP
+      name: http
+      port: 7001
+      targetPort: 7001
+

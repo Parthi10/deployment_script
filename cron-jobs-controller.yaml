@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: cron-jobs-controller
+  labels:
+    app: cron-jobs-controller
+  annotations:
+    fluxcd.io/tag.cron-jobs-controller: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: cron-jobs-controller
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: cron-jobs-controller
+    spec:
+      containers:
+        - name: cron-jobs-controller
+          image: onedpo/process-cron:prod
+          imagePullPolicy: Always
+          env:
+          - name: ACCESS_EXTRACTION_URL
+            value: "http://extraction-controller-service:7001/access_controller"
+          - name: LOGS_EXTRACTION_URL
+            value: "http://extraction-controller-service:7001/logs_controller"
+          - name: METADATA_EXTRACTION_URL
+            value: "http://extraction-controller-service:7001/metadata_controller"
+          - name: RISK_CALCULATION_URL
+            value: "http://batch-controller-service:8001/risk_calculation"
+          - name: SAMPLE_DATA_EXTRACTION_URL
+            value: "http://batch-controller-service:8001/sample_data_extraction"
+          - name: TAG_EXTRACTION_URL
+            value: "http://batch-controller-service:8001/tag_extraction"
+          - name: SUMMARY_GENERATION_URL
+            value: "http://batch-controller-service:8001/summary_report_calculation"
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "0.25Gi"
+              cpu: "0.25"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+      imagePullSecrets:
+        - name: regcred
+

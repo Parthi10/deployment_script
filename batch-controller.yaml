@@ -1,0 +1,85 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: batch-controller
+  labels:
+    app: batch-controller
+  annotations:
+    fluxcd.io/tag.batch-controller: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: batch-controller
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: batch-controller
+    spec:
+      containers:
+        - name: batch-controller
+          image: onedpo/batch-controller:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: CONNECTION_POOL_SIZE
+            value: "4"
+          - name: CONNECTION_OVERFLOW_SIZE
+            value: "3"
+          - name: BATCH_PROCESS_SAMPLE_DATA_EXTRACTION_URL
+            value: "http://batch-process-service:8002/sample_data_extraction"
+          - name: BATCH_PROCESS_TAG_EXTRACTION_URL
+            value: "http://batch-process-service:8002/tag_extraction"
+          - name: BATCH_PROCESS_RISK_CALCULATION_URL
+            value: "http://batch-process-service:8002/risk_calculation"
+          - name: SAMPLE_DATA_EXTRACTION_ASSET_LIST_CHUNK_SIZE
+            value: "50"
+          - name: TAG_EXTRACTION_ASSET_LIST_CHUNK_SIZE
+            value: "50"
+          - name: RISK_CALCULATION_ASSET_LIST_CHUNK_SIZE
+            value: "100"
+          ports:
+            - containerPort: 8001
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "0.5"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: batch-controller-service
+  labels:
+    app: batch-controller
+spec:
+  selector:
+    app: batch-controller
+  ports:
+    - protocol: TCP
+      name: http
+      port: 8001
+      targetPort: 8001
+

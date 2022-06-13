@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  namespace: default
+  name: protecto-ui
+  namespace: default
+spec:
+  dnsNames:
+    - test.thedpoforum.com
+  secretName: protecto-ui-tls
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer

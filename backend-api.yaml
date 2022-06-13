@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: backend-api
+  labels:
+    app: backend-api
+  annotations:
+    fluxcd.io/tag.backend-api: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: backend-api
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: backend-api
+    spec:
+      containers:
+        - name: backend-api
+          image: onedpo/backend-api:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: CONNECTION_POOL_SIZE
+            value: "10"
+          - name: CONNECTION_OVERFLOW_SIZE
+            value: "5"
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+            limits:
+              memory: "4Gi"
+              cpu: "3"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: backend-api-service
+  labels:
+    app: backend-api
+spec:
+  selector:
+    app: backend-api
+  ports:
+    - protocol: TCP
+      name: http
+      port: 3000
+      targetPort: 3000
+

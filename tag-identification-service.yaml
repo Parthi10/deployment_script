@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: tag-identification
+  labels:
+    app: tag-identification
+  annotations:
+    fluxcd.io/tag.tag-identification: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: tag-identification
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: tag-identification
+    spec:
+      containers:
+        - name: tag-identification
+          image: onedpo/test-ai-service:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: REGEX_THREADS
+            value: "5"
+          - name: TEXT_MAX_SIZE_FOR_ML
+            value: "500"
+          ports:
+            - containerPort: 4001
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "6Gi"
+              cpu: "1"
+            limits:
+              memory: "10Gi"
+              cpu: "2"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: tag-identification-service
+  labels:
+    app: tag-identification
+spec:
+  selector:
+    app: tag-identification
+  ports:
+    - protocol: TCP
+      name: http
+      port: 4001
+      targetPort: 4001
+

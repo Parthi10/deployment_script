@@ -1,0 +1,97 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: batch-process
+  labels:
+    app: batch-process
+  annotations:
+    fluxcd.io/tag.batch-process: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: batch-process
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: batch-process
+    spec:
+      containers:
+        - name: batch-process
+          image: onedpo/batch-process:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: CONNECTION_POOL_SIZE
+            value: "5"
+          - name: CONNECTION_OVERFLOW_SIZE
+            value: "10"
+          - name: REGEX_THREADS
+            value: "5"
+          - name: RISK_CALCULATION_THREADS
+            value: "5"
+          - name: MAX_LIST_SIZE_SAMPLE_DATA
+            value: "3"
+          - name: SAMPLE_SIZE
+            value: "100"
+          - name: NUM_SAMPLE_DATA_THREADS
+            value: "3"
+          - name: TEXT_MAX_SIZE_FOR_ML
+            value: "250"
+          ports:
+            - containerPort: 8002
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "6Gi"
+              cpu: "2"
+            limits:
+              memory: "10Gi"
+              cpu: "4"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: batch-process-service
+  labels:
+    app: batch-process
+spec:
+  selector:
+    app: batch-process
+  ports:
+    - protocol: TCP
+      name: http
+      port: 8002
+      targetPort: 8002
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: batch-process-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: batch-process
+  minReplicas: 1
+  maxReplicas: 7
+  targetCPUUtilizationPercentage: 60

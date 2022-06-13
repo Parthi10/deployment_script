@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: protecto-ui
+  labels:
+    app: protecto-ui
+  annotations:
+    fluxcd.io/tag.protecto-ui: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: protecto-ui
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: protecto-ui
+    spec:
+      containers:
+      - name: protecto-ui
+        image: onedpo/onedpo-ui:prod
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "0.5Gi"
+            cpu: "0.5"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: protecto-ui-service
+  labels:
+    app: protecto-ui
+spec:
+  selector:
+    app: protecto-ui
+  ports:
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: 80
+

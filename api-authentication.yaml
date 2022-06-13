@@ -1,0 +1,77 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: api-authentication
+  labels:
+    app: api-authentication
+  annotations:
+    fluxcd.io/tag.api-authentication: semver:~1.0
+    fluxcd.io/automated: 'true'
+spec:
+  selector:
+    matchLabels:
+      app: api-authentication
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: api-authentication
+    spec:
+      containers:
+        - name: api-authentication
+          image: onedpo/authentication-service:prod
+          imagePullPolicy: Always
+          env:
+          - name: ONEDPO_CONFIG_PATH
+            value: "/usr/src/app/conf/config.ini"
+          - name: CONNECTION_POOL_SIZE
+            value: "5"
+          - name: CONNECTION_OVERFLOW_SIZE
+            value: "5"
+          - name: ONEDPO_BACKEND_API_HOST
+            value: "http://backend-api-service:3000"
+          - name: ONEDPO_ML_SERVICE_HOST
+            value: "http://tag-identification-service:4001"
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+          - name: configs
+            mountPath: "/usr/src/app/conf"
+            readOnly: true
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "0.5"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+      volumes:
+        - name: configs
+          secret:
+            secretName: configs
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: api-authentication-service
+  labels:
+    app: api-authentication
+spec:
+  selector:
+    app: api-authentication
+  ports:
+    - protocol: TCP
+      name: http
+      port: 5000
+      targetPort: 5000
+

@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  namespace: default
+  name: nginx-ingress
+spec:
+  tls:
+  - hosts:
+    - test.thedpoforum.com
+    secretName: protecto-ui-tls
+  rules:
+  - host: test.thedpoforum.com
+    http:
+      paths:
+      - path: /api/(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: api-authentication-service
+            port:
+              number: 5000
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: protecto-ui-service
+            port:
+              number: 80
